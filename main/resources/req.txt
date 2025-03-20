@@ -1,0 +1,25 @@
+"job_desc=We are seeking a highly skilled and motivated Senior Python Developer with expertise in Flask, Machine Learning, and Natural Language Processing (NLP). The ideal candidate will be responsible for designing, developing, and optimizing scalable web applications, integrating machine learning models, and enhancing NLP-based functionalities. 
+
+Key Responsibilities:
+- Develop and maintain scalable Flask-based web applications and RESTful APIs.
+- Implement and optimize machine learning models for real-world applications.
+- Work on Natural Language Processing (NLP) tasks such as text classification, entity recognition, and sentiment analysis.
+- Ensure database management using SQL/NoSQL databases such as PostgreSQL or MongoDB.
+- Deploy and manage applications on cloud platforms such as AWS, GCP, or Azure.
+- Collaborate with cross-functional teams to develop innovative solutions and improve system performance.
+- Write clean, efficient, and well-documented code following best software development practices.
+
+Required Skills:
+- Strong proficiency in Python and Flask.
+- Experience with Machine Learning frameworks such as TensorFlow, PyTorch, or Scikit-Learn.
+- Hands-on experience in NLP techniques like tokenization, stemming, lemmatization, and word embeddings.
+- Solid understanding of RESTful API design and microservices architecture.
+- Familiarity with DevOps tools such as Docker, Kubernetes, and CI/CD pipelines.
+- Strong problem-solving skills and the ability to work independently as well as in a team.
+
+Preferred Qualifications:
+- Experience with cloud-based deployment on AWS Lambda, EC2, or GCP App Engine.
+- Familiarity with version control systems like Git and collaborative development tools such as GitHub or GitLab.
+- Understanding of Agile methodologies and experience working in a fast-paced environment.
+
+If you are passionate about cutting-edge technology and want to work on exciting projects, we encourage you to apply and be a part of our dynamic team!" 

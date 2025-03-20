@@ -1,66 +1,99 @@
+from flask import Flask, request, jsonify
+import re
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-import numpy as np
-from collections import Counter
-from sklearn.metrics.pairwise import cosine_similarity
+from nltk.stem import WordNetLemmatizer
+import google.generativeai as genai
+from dotenv import load_dotenv
+from docx import Document
+import fitz 
+import os
 
-# Ensure necessary NLTK components are available
-nltk.download("punkt")
-nltk.download("stopwords")
+# load_dotenv("api.env")
+# gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-# Function to preprocess text (Tokenization + Stopword Removal)
+try:
+    nltk.data.find("corpora/stopwords")
+    nltk.data.find("tokenizers/punkt")
+    nltk.data.find("corpora/wordnet")
+except LookupError:
+    nltk.download("stopwords")
+    nltk.download("punkt")
+    nltk.download("wordnet")
+
+app = Flask(__name__)    
+
+def extract_pdf(file):
+    text = ""
+    doc = fitz.open(stream=file.read(), filetype="pdf")
+    for page in doc:
+        text += page.get_text("text") + "\n"
+    return text.strip()
+
+def extract_docx(file):
+    text = ""
+    document = Document(file)
+    for para in document.paragraphs:
+        text += para.text + "\n"
+    return text.strip()
+
 def preprocess_text(text):
     stop_words = set(stopwords.words("english"))
-    words = word_tokenize(text.lower())  # Tokenize and lowercase
-    words = [word for word in words if word.isalnum() and word not in stop_words]  # Remove punctuation and stopwords
-    return words
+    lemmatizer = WordNetLemmatizer()
+    words = word_tokenize(text.lower())
+    words = [lemmatizer.lemmatize(word) for word in words if word.isalnum() and word not in stop_words]
+    return " ".join(words) 
 
-# Function to compute TF-IDF vectors manually
-def compute_tfidf_vector(text, corpus):
-    words = preprocess_text(text)
-    word_counts = Counter(words)  # Count word frequency
-    total_words = sum(word_counts.values())
+prompt = '''
+You are an AI assistant. Extract the candidate's Name, Email, and Phone Number from the resume.
+Then, compare the resume with the job description and provide a percentage match based on skills, experience, and relevance.
+Strictly format the output as: 
 
-    # Compute Term Frequency (TF)
-    tf_vector = {word: count / total_words for word, count in word_counts.items()}
+<Name> <Email> <Phone> <Score%>
 
-    # Compute Inverse Document Frequency (IDF)
-    idf_vector = {}
-    num_docs = len(corpus)
-    for word in set(words):
-        doc_count = sum(1 for doc in corpus if word in doc)
-        idf_vector[word] = np.log((1 + num_docs) / (1 + doc_count)) + 1  # Smoothing
+Example:
+John Doe johndoe@gmail.com 1234567890 75.32%
+'''
 
-    # Compute TF-IDF scores
-    tfidf_vector = {word: tf_vector[word] * idf_vector[word] for word in words}
+@app.route("/analyze", methods=["POST"])
+def analyze_resume():
+    """Analyze Resume Match Score"""
+    if "file" not in request.files or "job_desc" not in request.form:
+        return jsonify({"error": "File and Job Description are required"}), 400
+    
+    file = request.files["file"]
+    job_desc = request.form["job_desc"].strip()
 
-    return tfidf_vector
+    # Extract resume text
+    if file.filename.endswith(".pdf"):
+        resume_text = extract_pdf(file)
+    elif file.filename.endswith(".docx"):
+        resume_text = extract_docx(file)
+    else:
+        return jsonify({"error": "Unsupported file format"}), 400
 
-# Convert dictionary to vector for cosine similarity
-def vectorize(tfidf_dict, all_words):
-    return np.array([tfidf_dict.get(word, 0) for word in all_words])
+    # Preprocess text
+    resume_text = preprocess_text(resume_text)
+    job_desc = preprocess_text(job_desc)
 
-# Example texts
-resume_text = "I am a Python Developer with expertise in Flask, Machine Learning, and NLP."
-job_description = "Looking for a skilled developer with Python, Flask, and AI experience."
+    # Generate AI Score
+    data = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}\n\n{prompt}"
 
-# Create corpus for IDF calculations
-corpus = [preprocess_text(resume_text), preprocess_text(job_description)]
+    gemini_api_key ="AIzaSyAa-DKhqGewqHMEYYA2SnbgJK73zRh-EFA"
+    genai.configure(api_key=gemini_api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(data)
 
-# Compute TF-IDF vectors
-resume_tfidf = compute_tfidf_vector(resume_text, corpus)
-job_tfidf = compute_tfidf_vector(job_description, corpus)
+    # Extract percentage score
+    score = response.text.strip()
 
-# Get all unique words across both texts
-all_words = list(set(resume_tfidf.keys()).union(set(job_tfidf.keys())))
+    return jsonify({"match_score": score})
 
-# Convert to numerical vectors
-resume_vector = vectorize(resume_tfidf, all_words)
-job_vector = vectorize(job_tfidf, all_words)
+if __name__ == "__main__":
+    app.run(debug=True)
 
-# Compute cosine similarity
-similarity_score = cosine_similarity([resume_vector], [job_vector])[0][0]
 
-# Print similarity score
-print(f"Resume Match Score: {similarity_score * 100:.2f}%")
+# genai.configure(api_key=gemini_api_key)
+# model = genai.GenerativeModel("gemini-1.5-flash")
+# response = model.generate_content(data)
