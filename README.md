@@ -9,7 +9,7 @@ _"The most disruptive innovation in recruitment since the LinkedIn profile" - HR
 ![Python](https://img.shields.io/badge/Python-3.9%252B-blue)  
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.32%252B-FF4B4B)  
 ![NLP](https://img.shields.io/badge/NLP-Advanced-orange)  
-![Gemini AI](https://img.shields.io/badge/Google%2520Gemini-AI-powered-success)
+![Screenshot from 2025-03-21 17-17-43](https://github.com/user-attachments/assets/663b62a6-07f0-498b-8c41-d148ae45ea3b)
 
 
 
@@ -25,7 +25,7 @@ This isn't just another resume parser - it's **the world's first context-aware 
 ✅ **Military-Grade Accuracy** (85% better matches than traditional systems)  
 ✅ **Future-Proof Hiring** (Learns your ideal candidate profile automatically)
 
-![Demo](https://via.placeholder.com/800x400.png/000000/ffffff?text=AI+Resume+Analysis+in+Action)
+[cinnamon-2025-03-21T165111+0500.webm](https://github.com/user-attachments/assets/5aab0af3-6c99-4c0d-afce-62aaabac7d21)
 
 💼 For HR Professionals Who Mean Business
 -----------------------------------------
