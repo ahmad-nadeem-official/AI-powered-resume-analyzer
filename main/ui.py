@@ -1,122 +1,170 @@
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import fitz
+from docx import Document
 import streamlit as st
-import requests
+import google.generativeai as genai
 
-# Set page title and layout
-st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
+genai_api_key = "AIzaSyAa-DKhqGewqHMEYYA2SnbgJK73zRh-EFA"
+genai.configure(api_key=genai_api_key)
 
-# Title and Branding
-st.markdown(
-    "<h2 style='text-align: left; color: #007bff;'>📄 Resume Analyzer</h2>", 
-    unsafe_allow_html=True
-)
+
+try:
+    nltk.data.find("corpora/stopwords")
+    nltk.data.find("tokenizers/punkt")
+    nltk.data.find("corpora/wordnet")
+except LookupError:
+    nltk.download("stopwords")
+    nltk.download("punkt")
+    nltk.download("wordnet")
+
+
+def extract_pdf(file):
+    text = ""
+    doc = fitz.open(stream=file.read(), filetype="pdf")  
+    for page in doc:
+        text += page.get_text("text") + "\n"
+    return text.strip()
+
+
+def extract_docx(file):
+    text = ""
+    document = Document(file)
+    for para in document.paragraphs:
+        text += para.text + "\n"
+    return text.strip()
+
+
+def preprocess_text(text):
+    stop_words = set(stopwords.words("english"))
+    lemmatizer = WordNetLemmatizer()
+    words = word_tokenize(text.lower())
+    words = [lemmatizer.lemmatize(word) for word in words if word.isalnum() and word not in stop_words]
+    return " ".join(words)
+
+
+st.set_page_config(page_title="AI Resume Analyzer", page_icon="📄", layout="wide")
+
+
+st.markdown("""
+    <style>
+        .title {
+            text-align: center; 
+            font-size: 34px; /* Slightly larger */
+            font-weight: bold; 
+            color: #007bff;
+        }
+        .sub-title {
+            text-align: center; 
+            font-size: 22px; /* Slightly larger */
+            color: gray;
+        }
+        .score {
+            font-size: 22px;
+            font-weight: bold;
+        }
+        .stButton button {
+            width: 100%;
+            background-color: #007bff !important;
+            color: white !important;
+            font-weight: bold;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("<p class='title'>📄 AI-Powered Resume Analyzer</p>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Effortlessly analyze resumes and get instant insights.</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# Sidebar - File Upload
-st.sidebar.header("📂 Upload Your Resume")
+
+st.sidebar.header("📂 Upload Resume & Job Description")
 uploaded_file = st.sidebar.file_uploader("Upload PDF or DOCX", type=["pdf", "docx"])
+job_desc = st.sidebar.text_area("📄 Paste Job Description", height=150)
 
-# Sidebar - Job Description Input
-job_desc = st.sidebar.text_area("📄 Paste Job Description (Optional)", height=150)
 
-# Process Button
 if st.sidebar.button("Analyze Resume"):
     if uploaded_file:
-        files = {"file": uploaded_file.getvalue()}
-        data = {"job_desc": job_desc}
-        
-        # Call backend API (Assuming FastAPI or Flask)
-        response = requests.post("http://127.0.0.1:5000/analyze", files=files, data=data)
-        
-        if response.status_code == 200:
-            result = response.json()
-            st.success(f"✅ Resume Match Score: **{result['match_score']}%**")
+        resume_text = ""
+
+
+        if uploaded_file.type == "application/pdf":
+            resume_text = extract_pdf(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            resume_text = extract_docx(uploaded_file)
         else:
-            st.error("❌ Error analyzing resume. Please try again.")
+            st.error("❌ Unsupported file format. Please upload a PDF or DOCX.")
+            st.stop()
+
+
+        if not job_desc.strip():
+            st.warning("⚠️ No job description provided. Analysis will be based only on resume.")
+            job_desc = "No job description provided."
+
+        
+        prompt = """
+        You are an AI assistant. Extract the candidate's Name, Email, and Phone Number from the resume.
+        Then, compare the resume with the job description and provide a percentage match based on skills, experience, and relevance.
+        Strictly format the output as: <Name> <Email> <Phone> <Score%>
+        """
+        data = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}\n\n{prompt}"
+
+        
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(data)
+
+        
+        if response and response.text:
+            st.success("✅ Resume Analysis Complete!")
+            
+        
+            result_lines = response.text.strip().split("\n")
+            last_line = result_lines[-1]  # Assuming last line has score
+            parts = last_line.split()
+            
+            if parts and parts[-1].endswith("%"):
+                score = int(parts[-1].replace("%", ""))  # Convert to integer
+                
+                # Assign color based on score threshold
+                score_color = "green" if score > 50 else "red"
+                score_html = f"<p class='score' style='color: {score_color};'>Score: {score}%</p>"
+                
+                # Display the formatted score
+                st.markdown(score_html, unsafe_allow_html=True)
+            
+            st.write(response.text)
+        else:
+            st.error("❌ Failed to analyze the resume. Please try again.")
+
     else:
         st.warning("⚠️ Please upload a resume.")
 
-# UI Sections - Why Choose Us?
-st.markdown("### 🚀 Why Choose Our AI Resume Analyzer?")
-col1, col2 = st.columns(2)
-
-with col1:
-    st.info("🔍 **Tailored Scoring for Job Descriptions**\n\nYour resume is scored based on alignment with job descriptions.")
-
-    st.success("💡 **Continuous AI Innovation**\n\nWe use cutting-edge AI models to provide accurate resume analysis.")
-
-with col2:
-    st.warning("🧠 **Multiple AI Perspectives**\n\nOur AI uses different models to provide diverse feedback.")
-
-    st.error("📊 **Understanding Variability**\n\nResumes are evaluated from multiple lenses for a better perspective.")
-
-# UI Sections - Features
-st.markdown("### 🔥 Features of Our Resume Analyzer")
+# Key Features Section
+st.markdown("## Why Choose Our AI Resume Analyzer?")
 st.markdown("""
-✅ **Smart Resume Analysis** - Instantly get insights on resume effectiveness.  
-✅ **Detailed Insights** - Understand readability, impact, and industry benchmarks.  
-✅ **Actionable Recommendations** - Improve wording, formatting, and optimization.  
+- **AI-Powered, Not Just Keywords:** Unlike traditional ATS, our AI doesn't reject resumes based on missing keywords. Instead, it **understands context** and evaluates skills fairly.
+- **Supports Both PDF & DOCX Formats:** No need to open resumes manually. Our AI automatically processes both **PDF and DOCX** files.
+- **Instantly Extracts Candidate Details:** It extracts **Name, Email, and Phone Number** directly from resumes for quick HR review.
+- **Unbiased & Fair Evaluation:** ATS systems can unfairly filter resumes, but our AI **objectively** assesses based on experience and skills, eliminating biases.
+- **Fast & Efficient Resume Analysis:** Get **instant** feedback, job-match scores, and resume insights in **seconds**.
+- **No Fear of Keyword Manipulation:** Candidates no longer need to **stuff** keywords—our AI analyzes **true skill relevance**, not just text-matching.
+- **Industry-Grade Accuracy:** Our AI uses **cutting-edge NLP** to deliver accurate resume evaluations that help recruiters make **better hiring decisions**.
 """)
 
 
+st.markdown("### Benefits for HR Professionals")
+col1, col2 = st.columns(2)
 
+with col1:
+    st.success("**Faster Hiring Process**\n\nSave **hours** of resume screening with AI automation.")
+    st.info("**Eliminates Bias**\n\nEvaluates resumes fairly without ATS-style keyword discrimination.")
+    
+with col2:
+    st.warning("**More Accurate Candidate Matches**\n\nAI **scores resumes based on actual skills** rather than keyword frequency.")
+    st.error("**Seamless Resume Extraction**\n\nExtracts essential candidate details instantly.")
 
-
-
-
-# import streamlit as st
-# from PIL import Image
-
-# def main():
-#     # Page Configuration
-#     st.set_page_config(page_title="Resume Analyzer", layout="wide")
-    
-#     # Header
-#     st.markdown("""
-#         <h1 style='text-align: left; color: #2C3E50;'>Resume Analyzer</h1>
-#         <hr style='border: 1px solid #ddd;'>
-#     """, unsafe_allow_html=True)
-    
-#     # Layout - File Upload & Job Description
-#     col1, col2 = st.columns([2, 1])
-#     with col1:
-#         st.subheader("Upload Your Resume")
-#         file = st.file_uploader("Choose a PDF or DOCX file", type=["pdf", "docx"], help="Only PDF or DOCX files are supported.")
-    
-#     with col2:
-#         st.subheader("Enter Job Description")
-#         job_desc = st.text_area("Paste the job description for better matching (optional)")
-    
-#     # Submit Button
-#     if st.button("Analyze Resume", use_container_width=True):
-#         if file:
-#             st.success("Resume uploaded successfully. Processing...")
-#         else:
-#             st.error("Please upload a resume file before analyzing.")
-    
-#     # Feature Sections
-#     st.markdown("""
-#     <h2 style='text-align: center;'>Why Choose Our AI Resume Analyzer?</h2>
-#     """, unsafe_allow_html=True)
-    
-#     # Features Grid
-#     col1, col2 = st.columns(2)
-#     with col1:
-#         st.info("**Tailored Scoring for Job Descriptions**\n\nOur AI evaluates how well your resume aligns with job descriptions.")
-#         st.info("**Continuous Innovation for Better Results**\n\nWe integrate the latest AI models to stay ahead.")
-#     with col2:
-#         st.info("**Multiple AI Perspectives**\n\nDiverse AI models provide comprehensive resume feedback.")
-#         st.info("**Understanding Variability in Results**\n\nAI models interpret resumes differently, offering varied insights.")
-    
-#     st.markdown("""
-#     <h2 style='text-align: center;'>How It Works</h2>
-#     """, unsafe_allow_html=True)
-    
-#     st.markdown("""
-#     1. **Upload Your Resume** - Supported formats: PDF, DOCX.
-#     2. **Add Job Description (Optional)** - Paste the job description to improve analysis.
-#     3. **Get Instant Analysis** - AI evaluates your resume for key insights.
-#     """, unsafe_allow_html=True)
-    
-# if __name__ == "__main__":
-#     main()
-
+# Footer
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>© 2025 AI Resume Analyzer | made by MUHAMMAD AHMAD NADEEM</p>", unsafe_allow_html=True)
