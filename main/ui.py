@@ -7,7 +7,7 @@ from docx import Document
 import streamlit as st
 import google.generativeai as genai
 
-genai_api_key = "AIzaSyAa-DKhqGewqHMEYYA2SnbgJK73zRh-EFA"
+genai_api_key = "use your own api key"
 genai.configure(api_key=genai_api_key)
 
 
