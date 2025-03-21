@@ -80,7 +80,7 @@ def analyze_resume():
     # Generate AI Score
     data = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}\n\n{prompt}"
 
-    gemini_api_key ="AIzaSyAa-DKhqGewqHMEYYA2SnbgJK73zRh-EFA"
+    gemini_api_key =""
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content(data)
