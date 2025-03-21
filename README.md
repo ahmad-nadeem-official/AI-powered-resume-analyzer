@@ -27,52 +27,18 @@ This isn't just another resume parser - it's **the world's first context-aware 
 
 [cinnamon-2025-03-21T165111+0500.webm](https://github.com/user-attachments/assets/5aab0af3-6c99-4c0d-afce-62aaabac7d21)
 
-💼 For HR Professionals Who Mean Business
------------------------------------------
+### For HR Professionals Who Mean Business
 
-### Traditional ATS vs. AI Analyzer
+**Traditional ATS vs. AI Analyzer**
 
-Feature
-
-Traditional ATS
-
-AI Resume Analyzer
-
-**Evaluation Basis**
-
-Keyword Matching
-
-Contextual Understanding
-
-**Bias Elimination**
-
-❌ Limited
-
-✅ Full
-
-**Speed**
-
-5-10 min/resume
-
-2.7 sec/resume
-
-**Candidate Insight**
-
-Basic Info
-
-Skills Matrix + Potential
-
-**Format Support**
-
-PDF Only
-
-PDF + DOCX
-
-**HR Time Saved**
-
-40%
-
-92%
+| Feature                | Traditional ATS          | AI Resume Analyzer       |
+|------------------------|--------------------------|--------------------------|
+| **Evaluation Basis**   | Keyword Matching         | Contextual Understanding |
+| **Bias Elimination**   | ❌ Limited               | ✅ Full                  |
+| **Speed**              | 5-10 min/resume          | 2.7 sec/resume           |
+| **Candidate Insight**  | Basic Info               | Skills Matrix + Potential|
+| **Format Support**     | PDF Only                 | PDF + DOCX               |
+| **HR Time Saved**      | 40%                      | 92%                      |
 
 🛠️ Installation in 2 Minutes Flat
 ----------------------------------
