@@ -45,7 +45,7 @@ This isn't just another resume parser - it's **the world's first context-aware 
 
 
 \# Clone the repository (Star it first!)
-git clone https://github.com/yourusername/ai-resume-analyzer.git
+git clone [https://github.com/yourusername/ai-resume-analyzer.git](https://github.com/ahmad-nadeem-official/AI-powered-resume-analyzer.git)
 
 \# Install dependencies
 pip install \-r requirements.txt
