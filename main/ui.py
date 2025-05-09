@@ -10,7 +10,7 @@ from email.message import EmailMessage
 genai_api_key = "AIzaSyClwV_FGE6CWL0RA5v68UZwKIidGPNYdsY"
 genai.configure(api_key=genai_api_key)
 
-# Updated Preprocessing Function
+# Functions
 def extract_pdf(file):
     text = ""
     pdf_bytes = file.read()
@@ -25,24 +25,20 @@ def extract_docx(file):
     document = Document(file)
     for para in document.paragraphs:
         text += para.text + "\n"
-    return text.strip()  # No preprocessing here!
+    return text.strip()
 
-
-# Streamlit UI Setup
+# UI setup
 st.set_page_config(page_title="AI Resume Analyzer", page_icon="📄", layout="wide")
-
-st.markdown("<p class='title'>📄 AI-Powered Resume Analyzer</p>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>Effortlessly analyze resumes and get instant insights.</p>", unsafe_allow_html=True)
+st.markdown("<h1>📄 AI-Powered Resume Analyzer</h1>", unsafe_allow_html=True)
+st.markdown("<p>Effortlessly analyze resumes and get instant insights.</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
+# Sidebar
 st.sidebar.header("📂 Upload Resume & Job Description")
 uploaded_files = st.sidebar.file_uploader("Upload PDF or DOCX", type=["pdf", "docx"], accept_multiple_files=True)
 job_desc = st.sidebar.text_area("📄 Paste Job Description", height=150)
 
-# Lists for storing results
-names, emails, phones, scores = [], [], [], []
-
-# Analyze Button
+# Analyze button
 if st.sidebar.button("Analyze Resume"):
     if uploaded_files:
         if not job_desc.strip():
@@ -50,6 +46,7 @@ if st.sidebar.button("Analyze Resume"):
             job_desc = "No job description provided."
 
         model = genai.GenerativeModel("gemini-1.5-flash")
+        names, emails, phones, scores = [], [], [], []
 
         for file in uploaded_files:
             if file.name.endswith(".pdf"):
@@ -87,77 +84,58 @@ if st.sidebar.button("Analyze Resume"):
             else:
                 st.error(f"❌ Failed to analyze {file.name}")
 
-        # Create and show DataFrame
-        df = pd.DataFrame({
+        st.session_state.df = pd.DataFrame({
             "Name": names,
             "Email": emails,
             "Phone": phones,
             "Score": scores
         })
         st.success("✅ Resume Analysis Complete!")
-        st.dataframe(df)
 
-        # Emailing Section
-        # Emailing Section
-        min_score = st.number_input("🎯 Minimum Eligibility Score (%)", min_value=0, max_value=100, value=50)
-        
-        # ⬇️ Preserve form inputs using session state
-        if "subject" not in st.session_state:
-            st.session_state.subject = ""
-        if "body" not in st.session_state:
-            st.session_state.body = ""
-        if "smtp_password" not in st.session_state:
-            st.session_state.smtp_password = ""
-        
-        st.session_state.subject = st.text_input("📧 Email Subject", value=st.session_state.subject)
-        st.session_state.body = st.text_area("📄 Email Body", value=st.session_state.body)
-        st.session_state.smtp_password = st.text_input("🔒 Enter your email password", type="password", value=st.session_state.smtp_password)
-        
-        # Email send button
-        min_score = st.number_input("🎯 Minimum Eligibility Score (%)", min_value=0, max_value=100, value=50)
+# Show analysis if available
+if "df" in st.session_state:
+    df = st.session_state.df
+    st.dataframe(df)
 
-# Initialize session state to preserve inputs across reruns
-if "email_subject" not in st.session_state:
-    st.session_state["email_subject"] = ""
-if "email_body" not in st.session_state:
-    st.session_state["email_body"] = ""
-if "email_password" not in st.session_state:
-    st.session_state["email_password"] = ""
+    st.markdown("### 📬 Send Emails to Eligible Candidates")
 
-st.text_input("📧 Email Subject", key="email_subject")
-st.text_area("📄 Email Body", key="email_body")
-st.text_input("🔒 Enter your email password", type="password", key="email_password")
+    # Minimum score filter
+    min_score = st.number_input("🎯 Minimum Eligibility Score (%)", min_value=0, max_value=100, value=50)
 
-# Send Email Button
-if st.button("📬 Send Interview Emails"):
-    subject = st.session_state["email_subject"]
-    body = st.session_state["email_body"]
-    smtp_password = st.session_state["email_password"]
+    # Email form inputs
+    st.text_input("📧 Email Subject", key="email_subject")
+    st.text_area("📄 Email Body", key="email_body")
+    st.text_input("🔒 Enter your email password", type="password", key="email_password")
 
-    if subject and body:
-        eligible_df = df[df["Score"] >= min_score]
+    if st.button("📨 Send Interview Emails"):
+        subject = st.session_state["email_subject"]
+        body = st.session_state["email_body"]
+        smtp_password = st.session_state["email_password"]
 
-        try:
-            sender_email = "ahmadnadeem701065@gmail.com"
-            smtp_server = "smtp.gmail.com"
-            smtp_port = 587
+        if not subject or not body or not smtp_password:
+            st.warning("⚠️ Please fill in all email fields.")
+        else:
+            eligible_df = df[df["Score"] >= min_score]
+            try:
+                sender_email = "ahmadnadeem701065@gmail.com"
+                smtp_server = "smtp.gmail.com"
+                smtp_port = 587
 
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(sender_email, smtp_password)
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                server.login(sender_email, smtp_password)
 
-            for _, row in eligible_df.iterrows():
-                msg = EmailMessage()
-                msg["From"] = sender_email
-                msg["To"] = row["Email"]
-                msg["Subject"] = subject
-                msg.set_content(body)
-                server.send_message(msg)
+                for _, row in eligible_df.iterrows():
+                    msg = EmailMessage()
+                    msg["From"] = sender_email
+                    msg["To"] = row["Email"]
+                    msg["Subject"] = subject
+                    msg.set_content(body)
+                    server.send_message(msg)
 
-            server.quit()
-            st.success(f"📨 Emails sent to {len(eligible_df)} eligible candidates!")
-        except Exception as e:
-            st.error(f"❌ Failed to send emails. Error: {e}")
-    else:
-        st.warning("⚠️ Please enter subject and body for the email.")
-        
+                server.quit()
+                st.success(f"📨 Emails sent to {len(eligible_df)} eligible candidates!")
+            except Exception as e:
+                st.error(f"❌ Failed to send emails. Error: {e}")
+else:
+    st.info("ℹ️ Upload and analyze resumes to enable the email feature.")
