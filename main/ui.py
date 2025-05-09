@@ -13,7 +13,7 @@ genai.configure(api_key=genai_api_key)
 # Updated Preprocessing Function
 def extract_pdf(file):
     text = ""
-    doc = fitz.open(stream=file.read(), filetype="pdf")
+    doc = fitz.open(file)
     for page in doc:
         text += page.get_text("text") + "\n"
     return text.strip()  # No preprocessing here!
