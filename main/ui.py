@@ -7,7 +7,7 @@ import smtplib
 from email.message import EmailMessage
 
 # Setup Gemini API
-genai_api_key = "AIzaSyClwV_FGE6CWL0RA5v68UZwKIidGPNYdsY"
+# genai_api_key =
 genai.configure(api_key=genai_api_key)
 
 # Updated Preprocessing Function
