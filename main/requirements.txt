@@ -1,4 +1,5 @@
-scikit-learn
-nltk
-flask
+streamlit
+pymupdf
+python-docx
+google-generativeai
 pandas
