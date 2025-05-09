@@ -1,170 +1,161 @@
-import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 import fitz
 from docx import Document
 import streamlit as st
 import google.generativeai as genai
+import pandas as pd
+import smtplib
+from email.message import EmailMessage
 
-genai_api_key = "AIzaSyAa-DKhqGewqHMEYYA2SnbgJK73zRh-EFA"
+# Setup Gemini API
+genai_api_key = "AIzaSyClwV_FGE6CWL0RA5v68UZwKIidGPNYdsY"
 genai.configure(api_key=genai_api_key)
 
-
-try:
-    nltk.data.find("corpora/stopwords")
-    nltk.data.find("tokenizers/punkt")
-    nltk.data.find("corpora/wordnet")
-except LookupError:
-    nltk.download("stopwords")
-    nltk.download("punkt")
-    nltk.download("wordnet")
-
-
+# Updated Preprocessing Function
 def extract_pdf(file):
     text = ""
-    doc = fitz.open(stream=file.read(), filetype="pdf")  
+    doc = fitz.open(stream=file.read(), filetype="pdf")
     for page in doc:
         text += page.get_text("text") + "\n"
-    return text.strip()
-
+    return text.strip()  # No preprocessing here!
 
 def extract_docx(file):
     text = ""
     document = Document(file)
     for para in document.paragraphs:
         text += para.text + "\n"
-    return text.strip()
+    return text.strip()  # No preprocessing here!
 
 
-def preprocess_text(text):
-    stop_words = set(stopwords.words("english"))
-    lemmatizer = WordNetLemmatizer()
-    words = word_tokenize(text.lower())
-    words = [lemmatizer.lemmatize(word) for word in words if word.isalnum() and word not in stop_words]
-    return " ".join(words)
-
-
+# Streamlit UI Setup
 st.set_page_config(page_title="AI Resume Analyzer", page_icon="📄", layout="wide")
-
-
-st.markdown("""
-    <style>
-        .title {
-            text-align: center; 
-            font-size: 34px; /* Slightly larger */
-            font-weight: bold; 
-            color: #007bff;
-        }
-        .sub-title {
-            text-align: center; 
-            font-size: 22px; /* Slightly larger */
-            color: gray;
-        }
-        .score {
-            font-size: 22px;
-            font-weight: bold;
-        }
-        .stButton button {
-            width: 100%;
-            background-color: #007bff !important;
-            color: white !important;
-            font-weight: bold;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
 
 st.markdown("<p class='title'>📄 AI-Powered Resume Analyzer</p>", unsafe_allow_html=True)
 st.markdown("<p class='sub-title'>Effortlessly analyze resumes and get instant insights.</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-
 st.sidebar.header("📂 Upload Resume & Job Description")
-uploaded_file = st.sidebar.file_uploader("Upload PDF or DOCX", type=["pdf", "docx"])
+uploaded_files = st.sidebar.file_uploader("Upload PDF or DOCX", type=["pdf", "docx"], accept_multiple_files=True)
 job_desc = st.sidebar.text_area("📄 Paste Job Description", height=150)
 
+# Lists for storing results
+names, emails, phones, scores = [], [], [], []
 
+# Analyze Button
 if st.sidebar.button("Analyze Resume"):
-    if uploaded_file:
-        resume_text = ""
-
-
-        if uploaded_file.type == "application/pdf":
-            resume_text = extract_pdf(uploaded_file)
-        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            resume_text = extract_docx(uploaded_file)
-        else:
-            st.error("❌ Unsupported file format. Please upload a PDF or DOCX.")
-            st.stop()
-
-
+    if uploaded_files:
         if not job_desc.strip():
             st.warning("⚠️ No job description provided. Analysis will be based only on resume.")
             job_desc = "No job description provided."
 
-        
-        prompt = """
-        You are an AI assistant. Extract the candidate's Name, Email, and Phone Number from the resume.
-        Then, compare the resume with the job description and provide a percentage match based on skills, experience, and relevance.
-        Strictly format the output as: <Name> <Email> <Phone> <Score%>
-        """
-        data = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}\n\n{prompt}"
-
-        
         model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(data)
 
-        
-        if response and response.text:
-            st.success("✅ Resume Analysis Complete!")
-            
-        
-            result_lines = response.text.strip().split("\n")
-            last_line = result_lines[-1]  # Assuming last line has score
-            parts = last_line.split()
-            
-            if parts and parts[-1].endswith("%"):
-                score = int(parts[-1].replace("%", ""))  # Convert to integer
-                
-                # Assign color based on score threshold
-                score_color = "green" if score > 50 else "red"
-                score_html = f"<p class='score' style='color: {score_color};'>Score: {score}%</p>"
-                
-                # Display the formatted score
-                st.markdown(score_html, unsafe_allow_html=True)
-            
-            st.write(response.text)
-        else:
-            st.error("❌ Failed to analyze the resume. Please try again.")
+        for file in uploaded_files:
+            if file.name.endswith(".pdf"):
+                resume_text = extract_pdf(file)
+            elif file.name.endswith(".docx"):
+                resume_text = extract_docx(file)
+            else:
+                st.error(f"❌ Unsupported file format: {file.name}")
+                continue
 
+            prompt = """
+            You are an AI assistant. Extract the candidate's Name, Email, and Phone Number from the resume.
+            Then, compare the resume with the job description and provide a percentage match based on skills, experience, and relevance.
+            Strictly format the output as: <Name>, <Email>, <Phone>, <Score>
+            """
+
+            data = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}\n\n{prompt}"
+            response = model.generate_content(data)
+
+            if response and response.text:
+                last_line = response.text.strip().split("\n")[-1]
+                parts = [x.strip() for x in last_line.split(",")]
+                if len(parts) == 4:
+                    name, email, phone, score_str = parts
+                    try:
+                        score = int(score_str.replace("%", "").strip())
+                        names.append(name)
+                        emails.append(email)
+                        phones.append(phone)
+                        scores.append(score)
+                    except ValueError:
+                        st.warning(f"⚠️ Could not parse score for file {file.name}")
+                else:
+                    st.warning(f"⚠️ Unexpected format for file {file.name}")
+            else:
+                st.error(f"❌ Failed to analyze {file.name}")
+
+        # Create and show DataFrame
+        df = pd.DataFrame({
+            "Name": names,
+            "Email": emails,
+            "Phone": phones,
+            "Score": scores
+        })
+        st.success("✅ Resume Analysis Complete!")
+        st.dataframe(df)
+
+        # Emailing Section
+        # Emailing Section
+        min_score = st.number_input("🎯 Minimum Eligibility Score (%)", min_value=0, max_value=100, value=50)
+        
+        # ⬇️ Preserve form inputs using session state
+        if "subject" not in st.session_state:
+            st.session_state.subject = ""
+        if "body" not in st.session_state:
+            st.session_state.body = ""
+        if "smtp_password" not in st.session_state:
+            st.session_state.smtp_password = ""
+        
+        st.session_state.subject = st.text_input("📧 Email Subject", value=st.session_state.subject)
+        st.session_state.body = st.text_area("📄 Email Body", value=st.session_state.body)
+        st.session_state.smtp_password = st.text_input("🔒 Enter your email password", type="password", value=st.session_state.smtp_password)
+        
+        # Email send button
+        min_score = st.number_input("🎯 Minimum Eligibility Score (%)", min_value=0, max_value=100, value=50)
+
+# Initialize session state to preserve inputs across reruns
+if "email_subject" not in st.session_state:
+    st.session_state["email_subject"] = ""
+if "email_body" not in st.session_state:
+    st.session_state["email_body"] = ""
+if "email_password" not in st.session_state:
+    st.session_state["email_password"] = ""
+
+st.text_input("📧 Email Subject", key="email_subject")
+st.text_area("📄 Email Body", key="email_body")
+st.text_input("🔒 Enter your email password", type="password", key="email_password")
+
+# Send Email Button
+if st.button("📬 Send Interview Emails"):
+    subject = st.session_state["email_subject"]
+    body = st.session_state["email_body"]
+    smtp_password = st.session_state["email_password"]
+
+    if subject and body:
+        eligible_df = df[df["Score"] >= min_score]
+
+        try:
+            sender_email = "ahmadnadeem701065@gmail.com"
+            smtp_server = "smtp.gmail.com"
+            smtp_port = 587
+
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(sender_email, smtp_password)
+
+            for _, row in eligible_df.iterrows():
+                msg = EmailMessage()
+                msg["From"] = sender_email
+                msg["To"] = row["Email"]
+                msg["Subject"] = subject
+                msg.set_content(body)
+                server.send_message(msg)
+
+            server.quit()
+            st.success(f"📨 Emails sent to {len(eligible_df)} eligible candidates!")
+        except Exception as e:
+            st.error(f"❌ Failed to send emails. Error: {e}")
     else:
-        st.warning("⚠️ Please upload a resume.")
-
-# Key Features Section
-st.markdown("## Why Choose Our AI Resume Analyzer?")
-st.markdown("""
-- **AI-Powered, Not Just Keywords:** Unlike traditional ATS, our AI doesn't reject resumes based on missing keywords. Instead, it **understands context** and evaluates skills fairly.
-- **Supports Both PDF & DOCX Formats:** No need to open resumes manually. Our AI automatically processes both **PDF and DOCX** files.
-- **Instantly Extracts Candidate Details:** It extracts **Name, Email, and Phone Number** directly from resumes for quick HR review.
-- **Unbiased & Fair Evaluation:** ATS systems can unfairly filter resumes, but our AI **objectively** assesses based on experience and skills, eliminating biases.
-- **Fast & Efficient Resume Analysis:** Get **instant** feedback, job-match scores, and resume insights in **seconds**.
-- **No Fear of Keyword Manipulation:** Candidates no longer need to **stuff** keywords—our AI analyzes **true skill relevance**, not just text-matching.
-- **Industry-Grade Accuracy:** Our AI uses **cutting-edge NLP** to deliver accurate resume evaluations that help recruiters make **better hiring decisions**.
-""")
-
-
-st.markdown("### Benefits for HR Professionals")
-col1, col2 = st.columns(2)
-
-with col1:
-    st.success("**Faster Hiring Process**\n\nSave **hours** of resume screening with AI automation.")
-    st.info("**Eliminates Bias**\n\nEvaluates resumes fairly without ATS-style keyword discrimination.")
-    
-with col2:
-    st.warning("**More Accurate Candidate Matches**\n\nAI **scores resumes based on actual skills** rather than keyword frequency.")
-    st.error("**Seamless Resume Extraction**\n\nExtracts essential candidate details instantly.")
-
-# Footer
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>© 2025 AI Resume Analyzer | made by MUHAMMAD AHMAD NADEEM</p>", unsafe_allow_html=True)
+        st.warning("⚠️ Please enter subject and body for the email.")
+        
