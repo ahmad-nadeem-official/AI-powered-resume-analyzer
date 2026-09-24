@@ -1,0 +1,12 @@
+resume-analyzer/
+│── backend/              # Flask API for NLP processing
+│   ├── app.py           # Main Flask app
+│   ├── requirements.txt # Python dependencies
+│   ├── model/           # NLP model
+│   ├── utils.py         # Helper functions
+│── frontend/            # React.js (Optional)
+│── infrastructure/      # Terraform & Ansible scripts
+│── Dockerfile           # Docker configuration
+│── docker-compose.yml   # Multi-container setup
+│── .github/             # GitHub Actions for CI/CD
+│── README.md 
