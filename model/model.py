@@ -13,8 +13,9 @@ ai = ChatGroq(
     model="openai/gpt-oss-120b",
     temperature=0.1,
     max_tokens=None,
-    max_retries=3,
-    reasoning_format= "parsed",
-    rate_limiter=None)
+    # max_retries=3,
+    # reasoning_format= "parsed",
+    # rate_limiter=None).
+)
 
 aii = ai.with_structured_output(OP)
